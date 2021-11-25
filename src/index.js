@@ -23,6 +23,7 @@ function verifyExistsAccountCPF(request, response, next) {
         return response.status(400).json({ error: 'Cliente não encontrado '})
     }
 
+    // repassar a informação consumida no middleware para as demais rotas
     request.customer = customer
 
     //se der boa, continua
@@ -57,9 +58,73 @@ app.post('/account', (request, response) => {
 
 // Buscar o extrato do cliente usando route headers e tem middleware
 app.get('/statement', verifyExistsAccountCPF, (request, response) => {
+    const { customer } = request
+
     // usa o middleware
-    // retorna o statement
+    // retorna o statement    
     return response.json(customer.statement)
+})
+
+// Aqui vamos inserir um depósito
+// informações: descrição e amount(quantia)
+app.post('/deposit', verifyExistsAccountCPF, (request, response) => {
+    const { description, amount } = request.body
+
+    const { customer } = request
+
+    const statementOperation = {
+        description,
+        amount,
+        created_at: new Date(),
+        type: 'credit'
+    }
+
+    customer.statement.push(statementOperation)
+
+    return response.send(201).send()
+})
+
+// Busca extrato através da data bancária através de query params
+app.get('/statement/date', verifyExistsAccountCPF, (request, response) => {
+    const { customer } = request
+    const { date } = request.query
+
+    const dateFormat = new Date(date + " 00:00") // busca em qualquer horário do dia
+
+    // busca nos statements as datas, conforme data desta forma 10/12/2021
+    const statement = customer.statement.filter((statement) => statement.created_at.toDateString() === new Date(dateFormat).toDateString())
+
+    console.log(statement)
+
+    return response.json(customer.statement)
+})
+
+// Atualizar os dados do cliente
+app.put('/account', verifyExistsAccountCPF, (request, response) => {
+    const { name } = request.body
+    const { customer } = request
+
+    customer.name = name
+
+    return response.status(201).send()
+})
+
+// Obter dados da conta
+app.get('/account', verifyExistsAccountCPF, (request, response) => {
+    const { customer } = request
+
+    return response.json(customer)
+})
+
+// Deletar conta
+app.delete('/account', verifyExistsAccountCPF, (request, response) => {
+    const { customer } = request
+
+    // splice, recebe 2 parametros (onde inicia, até aonde espera que a remoção vá)
+    customers.splice(customer, 1) // remove uma posição após o customer
+
+    return response.status(200).json(customers) // envia os customers que restaram
+
 })
 
 app.listen(3333)
